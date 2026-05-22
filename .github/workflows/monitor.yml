@@ -1,0 +1,40 @@
+name: 内蒙古高校招聘监控
+
+on:
+  schedule:
+    # 北京时间每天 7:00 = UTC 23:00（GitHub Actions 用 UTC）
+    # 注意：schedule 可能延迟 5-15 分钟，无法严格保证 7:00 准时
+    - cron: '0 23 * * *'
+  workflow_dispatch:   # 允许手动触发，方便测试
+
+permissions:
+  contents: write   # 需要写权限把 seen_posts.json 推回仓库
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安装依赖
+        run: pip install -r requirements.txt
+
+      - name: 运行监控脚本
+        env:
+          SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
+        run: python monitor.py
+
+      - name: 保存缓存文件到仓库
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add seen_posts.json
+          git diff --staged --quiet || git commit -m "chore: 更新已推送公告缓存 $(date '+%Y-%m-%d %H:%M')"
+          git push
